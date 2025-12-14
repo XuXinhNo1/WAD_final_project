@@ -2,6 +2,8 @@
 
 A full-stack web application for managing restaurant tables with real-time status updates and CRUD operations.
 
+## Project cần file .env trong backend và frontend, hỏi người tạo đồ án để biết
+
 ## Project Structure
 
 ```
