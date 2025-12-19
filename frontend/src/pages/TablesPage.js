@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import TableCard from '../components/TableCard';
 import TableModal from '../components/TableModal';
+import QRCodeModal from '../components/QRCodeModal';
 import axios from 'axios';
 
 const TablesPage = () => {
@@ -9,32 +10,50 @@ const TablesPage = () => {
   const [filteredTables, setFilteredTables] = useState([]);
   const [locations, setLocations] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedTableForQR, setSelectedTableForQR] = useState(null);
   const [editingTable, setEditingTable] = useState(null);
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterLocation, setFilterLocation] = useState('ALL');
   const [loading, setLoading] = useState(true);
 
-  // Fetch tables
+  // Fetch tables with QR URLs
   const fetchTables = async () => {
     try {
       setLoading(true);
       let url = '/api/tables';
       const params = [];
-      
+
       if (filterStatus !== 'ALL') {
         params.push(`status=${filterStatus}`);
       }
       if (filterLocation !== 'ALL') {
         params.push(`location=${encodeURIComponent(filterLocation)}`);
       }
-      
+
       if (params.length > 0) {
         url += '?' + params.join('&');
       }
 
       const response = await axios.get(url);
-      setTables(response.data);
-      setFilteredTables(response.data);
+
+      // Fetch QR data for each table that has a qrToken
+      const tablesWithQR = await Promise.all(
+        response.data.map(async (table) => {
+          if (table.qrToken) {
+            try {
+              const qrResponse = await axios.get(`/api/tables/${table.id}/qr`);
+              return { ...table, qrUrl: qrResponse.data.qrUrl };
+            } catch (error) {
+              return table;
+            }
+          }
+          return table;
+        })
+      );
+
+      setTables(tablesWithQR);
+      setFilteredTables(tablesWithQR);
     } catch (error) {
       console.error('Error fetching tables:', error);
       alert('Failed to load tables');
@@ -109,6 +128,51 @@ const TablesPage = () => {
     } catch (error) {
       console.error('Error saving table:', error);
       alert(error.response?.data?.message || 'Failed to save table');
+    }
+  };
+
+  // Handle viewing QR code
+  const handleViewQR = async (table) => {
+    // Fetch latest QR data
+    try {
+      const response = await axios.get(`/api/tables/${table.id}/qr`);
+      setSelectedTableForQR(response.data);
+      setShowQRModal(true);
+    } catch (error) {
+      console.error('Error fetching QR data:', error);
+      // If no QR exists, still open modal to allow generation
+      setSelectedTableForQR(table);
+      setShowQRModal(true);
+    }
+  };
+
+  // Handle generating/regenerating QR code
+  const handleGenerateQR = async (tableId) => {
+    try {
+      const response = await axios.post(`/api/tables/${tableId}/qr/generate`);
+      // Refresh the selected table data
+      const tableResponse = await axios.get(`/api/tables/${tableId}/qr`);
+      setSelectedTableForQR(tableResponse.data);
+      fetchTables();
+      alert('QR Code generated successfully!');
+    } catch (error) {
+      console.error('Error generating QR:', error);
+      alert('Failed to generate QR code');
+    }
+  };
+
+  // Handle regenerating QR code (invalidates old)
+  const handleRegenerateQR = async (tableId) => {
+    try {
+      await axios.post(`/api/tables/${tableId}/qr/regenerate`);
+      // Refresh the selected table data
+      const tableResponse = await axios.get(`/api/tables/${tableId}/qr`);
+      setSelectedTableForQR(tableResponse.data);
+      fetchTables();
+      alert('QR Code regenerated successfully! The old QR code is now invalid.');
+    } catch (error) {
+      console.error('Error regenerating QR:', error);
+      alert('Failed to regenerate QR code');
     }
   };
 
@@ -208,6 +272,7 @@ const TablesPage = () => {
                   onEdit={handleEditTable}
                   onDelete={handleDeleteTable}
                   onToggleStatus={handleToggleStatus}
+                  onViewQR={handleViewQR}
                 />
               ))}
             </div>
@@ -221,6 +286,18 @@ const TablesPage = () => {
           locations={locations}
           onSave={handleSaveTable}
           onClose={() => setShowModal(false)}
+        />
+      )}
+
+      {showQRModal && selectedTableForQR && (
+        <QRCodeModal
+          table={selectedTableForQR}
+          qrUrl={selectedTableForQR.qrUrl}
+          onClose={() => {
+            setShowQRModal(false);
+            setSelectedTableForQR(null);
+          }}
+          onRegenerate={selectedTableForQR.qrToken ? handleRegenerateQR : handleGenerateQR}
         />
       )}
     </div>
