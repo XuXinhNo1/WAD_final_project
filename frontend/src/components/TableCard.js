@@ -1,6 +1,7 @@
 import React from 'react';
 
-const TableCard = ({ table, onEdit, onDelete, onToggleStatus }) => {
+// Thêm prop onPrint, onDownload vào danh sách props nhận vào
+const TableCard = ({ table, onEdit, onDelete, onToggleStatus, onPrint, onDownload }) => {
   const isActive = table.status === 'ACTIVE';
 
   return (
@@ -17,6 +18,25 @@ const TableCard = ({ table, onEdit, onDelete, onToggleStatus }) => {
         <div className="table-description">{table.description}</div>
       )}
       <div className="table-actions">
+        {/* --- PHẦN THÊM MỚI BẮT ĐẦU --- */}
+        <button 
+          className="btn-small" 
+          title="Print QR"
+          onClick={() => onPrint(table)}
+          style={{ marginRight: '5px' }} // CSS inline để nhanh gọn
+        >
+          🖨️
+        </button>
+        <button 
+          className="btn-small" 
+          title="Download PDF"
+          onClick={() => onDownload(table)}
+          style={{ marginRight: '5px' }}
+        >
+          ⬇️
+        </button>
+        {/* --- PHẦN THÊM MỚI KẾT THÚC --- */}
+
         <button 
           className="btn-small btn-edit" 
           title="Edit"

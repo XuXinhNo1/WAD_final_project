@@ -4,6 +4,10 @@ import TableCard from '../components/TableCard';
 import TableModal from '../components/TableModal';
 import axios from 'axios';
 
+import { useReactToPrint } from 'react-to-print';
+import { useRef } from 'react';
+import TablePrintTicket from '../components/TablePrintTicket';
+
 const TablesPage = () => {
   const [tables, setTables] = useState([]);
   const [filteredTables, setFilteredTables] = useState([]);
@@ -117,11 +121,38 @@ const TablesPage = () => {
     active: tables.filter(t => t.status === 'ACTIVE').length,
     inactive: tables.filter(t => t.status === 'INACTIVE').length,
   };
+  // --- LOGIC MỚI 3 ---
+  const printRef = useRef();
+  const [selectedTableForPrint, setSelectedTableForPrint] = useState(null);
 
+  // Hàm gọi API backend để tải PDF (Backend chạy port 4000)
+  const handleDownloadPdf = (table) => {
+    // Lưu ý: Dùng đường dẫn tuyệt đối http://localhost:4000 để tránh lỗi router
+    window.open(`http://localhost:4000/api/tables/${table.id}/qr/download`, '_blank');
+  };
+
+  // Hàm gọi API backend để tải ZIP
+  const handleDownloadAll = () => {
+    window.open(`http://localhost:4000/api/tables/qr/download-all`, '_blank');
+  };
+
+  // Setup hàm in ấn từ thư viện
+  const handlePrintTrigger = useReactToPrint({
+    content: () => printRef.current,
+  });
+
+  // Hàm xử lý khi bấm nút in trên Card
+  const handlePrint = (table) => {
+    setSelectedTableForPrint(table);
+    // Timeout 100ms để state kịp cập nhật dữ liệu vào component ẩn trước khi in
+    setTimeout(() => {
+      handlePrintTrigger();
+    }, 100);
+  };
+  // --- HẾT LOGIC MỚI ---
   return (
     <div className="admin-layout">
       <Sidebar />
-      
       <div className="admin-main">
         {/* Header */}
         <div className="admin-header">
@@ -129,9 +160,20 @@ const TablesPage = () => {
             <h1 className="page-title">Table Management</h1>
             <p className="page-subtitle">Manage tables and view table status</p>
           </div>
-          <button className="btn-primary" onClick={handleAddTable}>
-            + Add Table
-          </button>
+          
+          {/* SỬA ĐỔI 1: Gom nhóm nút bấm và thêm nút Download Zip */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              className="btn-secondary" 
+              onClick={handleDownloadAll}
+              title="Download all QR Codes as ZIP"
+            >
+              📦 Download QR Zip
+            </button>
+            <button className="btn-primary" onClick={handleAddTable}>
+              + Add Table
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -208,6 +250,9 @@ const TablesPage = () => {
                   onEdit={handleEditTable}
                   onDelete={handleDeleteTable}
                   onToggleStatus={handleToggleStatus}
+                  // SỬA ĐỔI 2: Truyền thêm hàm xử lý In và Download PDF
+                  onPrint={handlePrint}
+                  onDownload={handleDownloadPdf}
                 />
               ))}
             </div>
@@ -223,6 +268,11 @@ const TablesPage = () => {
           onClose={() => setShowModal(false)}
         />
       )}
+
+      {/* SỬA ĐỔI 3: Component ẩn dùng để render nội dung khi in */}
+      <div style={{ display: 'none' }}>
+        <TablePrintTicket ref={printRef} table={selectedTableForPrint} />
+      </div>
     </div>
   );
 };
