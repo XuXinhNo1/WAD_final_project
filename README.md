@@ -7,11 +7,7 @@ A full-stack web application for managing restaurant tables with real-time statu
 ## Project Structure
 
 ```
-<<<<<<< HEAD
 Source/
-=======
-Final_project/
->>>>>>> 8d1ecb68b95bfbcfc2736567e058a5b73a1f293f
 ├── backend/          # NestJS REST API
 ├── frontend/         # React web application
 ```
@@ -127,6 +123,63 @@ npm start  # React development server
 cd backend
 npx prisma studio  # Open Prisma Studio GUI
 ```
+
+## Production Deployment
+
+### Quick Deploy
+
+#### Backend (Heroku)
+```bash
+cd backend
+heroku create your-restaurant-api
+heroku addons:create heroku-postgresql:mini
+heroku config:set JWT_SECRET="your-secret-key"
+heroku config:set NODE_ENV=production
+heroku config:set FRONTEND_URL="https://your-app.netlify.app"
+git push heroku main
+heroku run npx prisma migrate deploy
+```
+
+#### Frontend (Netlify)
+```bash
+cd frontend
+npm install -g netlify-cli
+netlify login
+netlify init
+netlify env:set REACT_APP_API_URL "https://your-restaurant-api.herokuapp.com/api"
+npm run build
+netlify deploy --prod
+```
+
+### Detailed Instructions
+- 📖 [Complete Deployment Guide](docs/DEPLOYMENT.md)
+- 🚀 [Deployment Scripts](docs/DEPLOYMENT_SCRIPTS.md)
+
+### Environment Variables
+
+**Backend (.env)**
+```
+DATABASE_URL="postgresql://..."
+JWT_SECRET="your-secret-key"
+NODE_ENV=production
+FRONTEND_URL="https://your-app.netlify.app"
+PORT=3000
+```
+
+**Frontend (.env)**
+```
+REACT_APP_API_URL="https://your-restaurant-api.herokuapp.com/api"
+```
+
+See `.env.example` files in backend/ and frontend/ for templates.
+
+## Documentation
+
+- 📁 [Project Structure](STRUCTURE.md)
+- 📡 [API Endpoints](docs/api/TABLE_ENDPOINTS.md)
+- 🔐 [QR Token Format](docs/qr-specification/QR_TOKEN_FORMAT.md)
+- 🎬 [Demo Guide](docs/demo/DEMO_GUIDE.md)
+- 🚀 [Deployment Guide](docs/DEPLOYMENT.md)
 
 ## Project Details
 
