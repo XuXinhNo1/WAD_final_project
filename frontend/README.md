@@ -2,16 +2,10 @@
 
 A full-stack web application for managing restaurant tables with real-time status updates and CRUD operations.
 
-## Project cần file .env trong backend và frontend, hỏi người tạo đồ án để biết
-
 ## Project Structure
 
 ```
-<<<<<<< HEAD
-Source/
-=======
 Final_project/
->>>>>>> 8d1ecb68b95bfbcfc2736567e058a5b73a1f293f
 ├── backend/          # NestJS REST API
 ├── frontend/         # React web application
 ```
@@ -68,7 +62,7 @@ Backend will run on: http://localhost:3000/api
 ```bash
 cd frontend
 npm install
-npm run start
+npm start
 ```
 
 Frontend will run on: http://localhost:4000
