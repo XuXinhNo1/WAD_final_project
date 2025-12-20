@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: restaurant-db
+    restart: always
+    environment:
+      POSTGRES_USER: restaurant_admin
+      POSTGRES_PASSWORD: restaurant_pass_2024
+      POSTGRES_DB: smart_restaurant
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U restaurant_admin -d smart_restaurant"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
