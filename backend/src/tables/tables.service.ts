@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { QrService } from '../qr/qr.service';
 import { CreateTableDto } from './dto/create-table.dto';
 import { UpdateTableDto } from './dto/update-table.dto';
 
 @Injectable()
 export class TablesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private qrService: QrService,
+  ) {}
 
   async create(createTableDto: CreateTableDto) {
     // Check if table number already exists
@@ -18,8 +22,16 @@ export class TablesService {
     }
 
     // Create table
-    return this.prisma.table.create({
+    const table = await this.prisma.table.create({
       data: createTableDto,
+    });
+
+    // Automatically generate QR code for the new table
+    await this.qrService.generateQrToken(table.id);
+
+    // Return the table with the QR token
+    return this.prisma.table.findUnique({
+      where: { id: table.id },
     });
   }
 

@@ -73,9 +73,16 @@ const QRCodeModal = ({ table, qrUrl, onClose, onRegenerate }) => {
             {qrUrl && (
               <div className="detail-row">
                 <span className="detail-label">QR URL:</span>
-                <span className="detail-value url-value" title={qrUrl}>
+                <a 
+                  href={qrUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="detail-value url-value" 
+                  title={qrUrl}
+                  style={{ color: '#007bff', textDecoration: 'underline', cursor: 'pointer' }}
+                >
                   {qrUrl.length > 40 ? qrUrl.substring(0, 40) + '...' : qrUrl}
-                </span>
+                </a>
               </div>
             )}
           </div>

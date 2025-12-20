@@ -162,6 +162,10 @@
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid #f0f0f0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  line-height: 1.4;
 }
 
 .btn-edit {
@@ -300,6 +304,21 @@
   font-size: 12px;
   word-break: break-all;
   max-width: 200px;
+}
+
+.qr-url-link {
+  color: #3498db;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.qr-url-link:hover {
+  color: #2980b9;
+  text-decoration: underline;
+}
+
+.qr-url-link:visited {
+  color: #8e44ad;
 }
 
 .qr-modal-actions {

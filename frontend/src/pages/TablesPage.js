@@ -4,6 +4,9 @@ import TableCard from '../components/TableCard';
 import TableModal from '../components/TableModal';
 import QRCodeModal from '../components/QRCodeModal';
 import axios from 'axios';
+import { useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
+import TablePrintTicket from '../components/TablePrintTicket';
 
 const TablesPage = () => {
   const [tables, setTables] = useState([]);
@@ -15,20 +18,23 @@ const TablesPage = () => {
   const [editingTable, setEditingTable] = useState(null);
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterLocation, setFilterLocation] = useState('ALL');
+  const [sortBy, setSortBy] = useState('tableNumber:asc');
   const [loading, setLoading] = useState(true);
-
-  // Fetch tables with QR URLs
+  // Fetch tables
   const fetchTables = async () => {
     try {
       setLoading(true);
       let url = '/api/tables';
       const params = [];
-
+      
       if (filterStatus !== 'ALL') {
         params.push(`status=${filterStatus}`);
       }
       if (filterLocation !== 'ALL') {
         params.push(`location=${encodeURIComponent(filterLocation)}`);
+      }
+      if (sortBy) {
+        params.push(`sortBy=${sortBy}`);
       }
 
       if (params.length > 0) {
@@ -36,24 +42,8 @@ const TablesPage = () => {
       }
 
       const response = await axios.get(url);
-
-      // Fetch QR data for each table that has a qrToken
-      const tablesWithQR = await Promise.all(
-        response.data.map(async (table) => {
-          if (table.qrToken) {
-            try {
-              const qrResponse = await axios.get(`/api/tables/${table.id}/qr`);
-              return { ...table, qrUrl: qrResponse.data.qrUrl };
-            } catch (error) {
-              return table;
-            }
-          }
-          return table;
-        })
-      );
-
-      setTables(tablesWithQR);
-      setFilteredTables(tablesWithQR);
+      setTables(response.data);
+      setFilteredTables(response.data);
     } catch (error) {
       console.error('Error fetching tables:', error);
       alert('Failed to load tables');
@@ -76,7 +66,7 @@ const TablesPage = () => {
     fetchTables();
     fetchLocations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterStatus, filterLocation]);
+  }, [filterStatus, filterLocation, sortBy]);
 
   const handleAddTable = () => {
     setEditingTable(null);
@@ -102,10 +92,16 @@ const TablesPage = () => {
   };
 
   const handleToggleStatus = async (table) => {
+    const newStatus = table.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    const action = newStatus === 'INACTIVE' ? 'deactivate' : 'reactivate';
+    
+    if (!window.confirm(`Are you sure you want to ${action} table ${table.tableNumber}?${newStatus === 'INACTIVE' ? '\n\nDeactivating will prevent new orders from being placed at this table.' : ''}`))
+      return;
+    
     try {
-      const newStatus = table.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
       await axios.patch(`/api/tables/${table.id}/status`, { status: newStatus });
       fetchTables();
+      alert(`Table ${action}d successfully!`);
     } catch (error) {
       console.error('Error updating status:', error);
       alert('Failed to update table status');
@@ -149,7 +145,6 @@ const TablesPage = () => {
   // Handle generating/regenerating QR code
   const handleGenerateQR = async (tableId) => {
     try {
-      const response = await axios.post(`/api/tables/${tableId}/qr/generate`);
       // Refresh the selected table data
       const tableResponse = await axios.get(`/api/tables/${tableId}/qr`);
       setSelectedTableForQR(tableResponse.data);
@@ -182,10 +177,59 @@ const TablesPage = () => {
     inactive: tables.filter(t => t.status === 'INACTIVE').length,
   };
 
+  // Handle print
+  const printRef = useRef();
+  const [selectedTableForPrint, setSelectedTableForPrint] = useState(null);
+
+  // Setup hàm in ấn từ thư viện với API mới
+  const handlePrintTrigger = useReactToPrint({
+    contentRef: printRef,
+  });
+
+  // Hàm xử lý khi bấm nút in trên Card
+  const handlePrintTable = (table) => {
+    setSelectedTableForPrint(table);
+    // Timeout 100ms để state kịp cập nhật dữ liệu vào component ẩn trước khi in
+    setTimeout(() => {
+      handlePrintTrigger();
+    }, 100);
+  };
+
+  // Hàm gọi API backend để tải PDF
+  const handleDownloadPdf = (table) => {
+    window.open(`http://localhost:3000/api/tables/${table.id}/qr/download`, '_blank');
+  };
+
+  // Hàm gọi API backend để tải ZIP
+  const handleDownloadAll = () => {
+    window.open(`http://localhost:3000/api/tables/qr/download-all`, '_blank');
+  };
+  
+  // Hàm bulk regenerate tất cả QR codes
+  const handleBulkRegenerateQR = async () => {
+    const activeTablesCount = tables.filter(t => t.status === 'ACTIVE').length;
+    
+    if (!window.confirm(
+      `⚠️ BULK REGENERATE QR CODES\n\n` +
+      `This will regenerate QR codes for ${activeTablesCount} active table(s).\n\n` +
+      `All old QR codes will be INVALIDATED and customers with old codes won't be able to access the menu.\n\n` +
+      `Are you sure you want to continue?`
+    )) return;
+    
+    try {
+      const response = await axios.post('/api/tables/qr/regenerate-all');
+      fetchTables();
+      alert(`✅ Successfully regenerated QR codes for ${response.data.regeneratedCount} table(s)!`);
+    } catch (error) {
+      console.error('Error bulk regenerating QR codes:', error);
+      alert('Failed to regenerate QR codes');
+    }
+  };
+
+  // --- HẾT LOGIC MỚI ---
   return (
     <div className="admin-layout">
       <Sidebar />
-      
       <div className="admin-main">
         {/* Header */}
         <div className="admin-header">
@@ -193,9 +237,28 @@ const TablesPage = () => {
             <h1 className="page-title">Table Management</h1>
             <p className="page-subtitle">Manage tables and view table status</p>
           </div>
-          <button className="btn-primary" onClick={handleAddTable}>
-            + Add Table
-          </button>
+          
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              className="btn-primary" 
+              onClick={handleBulkRegenerateQR}
+              title="Regenerate all QR Codes"
+            >
+              🔄 Regenerate All QR
+            </button>
+            <button 
+              className="btn-primary" 
+              onClick={handleDownloadAll}
+              title="Download all QR Codes as ZIP"
+            >
+              📦 Download All QR
+            </button>
+            <button className="btn-primary" 
+            onClick={handleAddTable}>
+              + Add Table
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -254,6 +317,19 @@ const TablesPage = () => {
                   <option key={loc} value={loc}>{loc}</option>
                 ))}
               </select>
+              
+              <select 
+                className="filter-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="tableNumber:asc">Table Number (A-Z)</option>
+                <option value="tableNumber:desc">Table Number (Z-A)</option>
+                <option value="capacity:asc">Capacity (Low-High)</option>
+                <option value="capacity:desc">Capacity (High-Low)</option>
+                <option value="createdAt:asc">Oldest First</option>
+                <option value="createdAt:desc">Newest First</option>
+              </select>
             </div>
           </div>
 
@@ -273,6 +349,8 @@ const TablesPage = () => {
                   onDelete={handleDeleteTable}
                   onToggleStatus={handleToggleStatus}
                   onViewQR={handleViewQR}
+                  onPrintTable={handlePrintTable}
+                  onDownload={handleDownloadPdf}
                 />
               ))}
             </div>
@@ -300,6 +378,10 @@ const TablesPage = () => {
           onRegenerate={selectedTableForQR.qrToken ? handleRegenerateQR : handleGenerateQR}
         />
       )}
+      {/* Component ẩn dùng để render nội dung khi in */}
+      <div style={{ position: 'absolute', left: '-9999px' }}>
+        <TablePrintTicket ref={printRef} table={selectedTableForPrint} />
+      </div>
     </div>
   );
 };

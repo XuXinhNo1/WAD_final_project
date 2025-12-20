@@ -1768,10 +1768,17 @@ body {
   color: var(--dark);
 }
 
+.table-tile .table-info,
+.table-tile .table-description {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
 .table-tile .table-actions {
   display: flex;
   justify-content: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .btn-small {
